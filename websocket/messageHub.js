@@ -11,7 +11,7 @@
  *    - The { subject: <string> } in the incoming message. Such
  *      messages can be forwarded to any or all connected clients
  *    ... or:
- *    - One of the { recipient_id: <string> } in the incoming 
+ *    - One of the { recipient_id: <string> } in the incoming
  *      message. Such messages are treated only for the individual
  *      client identified by the recipient_id.
  *
@@ -27,11 +27,11 @@
 const { v4: uuid } = require('uuid')
 
 // Connection to database for LogIn
-const { User } = require('../database/models/')
+const { User, Class } = require('../database/models/')
 
 
 const allUsers = []
-// { <uuid>: { socket, uuid, groups, ... }, ... }
+// [{ socket, socket_id: uuid, groups: Set, ... }, ... ]
 
 
 const messageListeners = {
@@ -190,7 +190,9 @@ const treatIncoming = message => {
     listeners = Array.from(
       messageListeners.recipient_id[recipient_id] || []
     )
-    handled = listeners.some( listener => listener( message ))
+    listeners.forEach( listener => (
+      handled = listener( message, handled ) || handled
+    ))
 
     // Check for multiple recipients by unique user name
     if (Array.isArray(recipients)) {
@@ -198,7 +200,9 @@ const treatIncoming = message => {
         listeners = Array.from(
           messageListeners.recipient_id[name] || []
         )
-        handled = listeners.some( listener => listener( message ))
+        listeners.forEach( listener => (
+          handled = listener( message, handled ) || handled
+        ))
       })
     }
 
@@ -206,15 +210,17 @@ const treatIncoming = message => {
     listeners = Array.from(
       messageListeners.sender_id[sender_id] || []
     )
-    handled = listeners.some( listener => listener( message ))
-          || handled
+    listeners.forEach( listener => (
+      handled = listener( message, handled ) || handled
+    ))
 
     // ... and then treat the message by subject
     listeners = Array.from(messageListeners.subject[subject] || [])
-    handled = listeners.some( listener => listener( message ))
-          || handled
+    listeners.forEach( listener => (
+      handled = listener( message, handled ) || handled
+    ))
 
-    if (!handled) {
+    if (!handled) { // may be a promise
       console.log("\nUnhandled message:", message);
     }
 
@@ -226,7 +232,7 @@ const treatIncoming = message => {
 
 
 /**
- * @param {object} message should be an object with either a 
+ * @param {object} message should be an object with either a
  *                 recipient_id or a recipients array. If
  *                 recipient_id is present, recipients array is
  *                 ignored.
@@ -254,9 +260,10 @@ const sendMessage = message => {
 
   // socketsArray = Object.values(allUsers)
   recipients.forEach( id => {
-    // Find the socket for the given socket_id or user_name
+    // Recipients can be identified socket_id, User._id, or
+    // user_name
     const socket = getUserData(
-      { user_name: id, socket_id: id },
+      { socket_id: id, user_id: id, user_name: id },
       "socket"
     )
     // socketData = socketsArray.find(
@@ -272,13 +279,13 @@ const sendMessage = message => {
 
     socket.send(JSON.stringify(message))
   })
+
+  return true
 }
 
 
 
 function disconnect(socket) {
-  // const userData = Object.values(allUsers)
-  //   .find( value => value.socket === socket )
   const userData = getUserData({ socket })
 
   if (!userData) {
@@ -300,7 +307,13 @@ function disconnect(socket) {
     // Delete the disconnected socket from allUsers
     const index = allUsers.indexOf(userData)
     allUsers.splice(index, 1)
-    // delete allUsers[user_id]
+
+    // Tell any listeners that the socket has just closed
+    treatIncoming({
+      subject: "DISCONNECT",
+      sender_id: "SYSTEM",
+      userData
+    })
   }
 }
 
@@ -352,7 +365,13 @@ treatMessageListener(
  *
  * @returns true, to indicate that the incoming message was handled
  */
-async function logIn({ sender_id, user_name }) {
+async function logIn(args) {
+  const {
+    sender_id,
+    class_name,
+    user_name,
+    key_phrase
+  } = args
   // Hope for the best
   const message = {
     subject: "LOGGED_IN", // may be changed if there is an error
@@ -361,12 +380,12 @@ async function logIn({ sender_id, user_name }) {
     user_name
   }
 
-  // Get the _id of the (new) user with the given name
-  const user_id = await User.getOrCreateByName(user_name)
+  // Get the _id of the (new) user with the given name. Initial
+  // login can have an empty key_phrase.
+  const user_id = await Class.getRegistered(args)
 
-  if (!user_id) {
-    // This should never happen
-    console.error("logIn failed:", result)
+  if (!user_id) { // no user w/ given name and key_phrase in class
+    console.error("logIn failed:", args)
     message.subject = "LOGIN_FAILED"
 
   } else {
@@ -381,6 +400,15 @@ async function logIn({ sender_id, user_name }) {
 
   sendMessage(message)
 
+  // Allow listeners to know about the success of the login
+  treatIncoming({
+    ...args, // includes original sender_id (socket)
+    subject: "LOGIN_RESULT", // overwrite "LOG_IN"
+    recipient_id: "",        // overwrite "SYSTEM"
+    user_id, // will be undefined if login failed
+    error: (user_id ? 0 : -1)
+  })
+
   return true
 }
 
@@ -392,6 +420,11 @@ async function logOut() {
 
 // USER DATA // USER DATA // USER DATA // USER DATA // USER DATA //
 
+/**
+ *
+ * @param {*} id
+ * @param {*} customData
+ */
 function setUserData(id, customData) {
   // const userData  = allUsers.find( data => (
   //   data.user_id === user_id
@@ -454,6 +487,11 @@ function getUserData( query, key ) {
     return found
   })
 
+  if (!userData) {
+    // console.log("No user data for", query, key)
+    return // undefined
+  }
+
   if (!key) {
     return userData
   }
@@ -462,10 +500,17 @@ function getUserData( query, key ) {
 }
 
 
+function getGroupSockets(group_name) {
+  return allUsers
+    .filter(({ groups }) => groups?.has(group_name))
+    .map(({ socket_id }) => socket_id)
+}
+
+
 // Share functions and data with other scripts
 
 module.exports = {
-  // used by websocket/index.js
+  // used by websocket/index.js => socket.js
   newUser,
   disconnect,
   treatIncoming,
@@ -474,5 +519,6 @@ module.exports = {
   treatMessageListener,
   sendMessage,
   updateGroups,
-  getUserData
+  getUserData,
+  getGroupSockets
 }
