@@ -368,7 +368,7 @@ treatMessageListener(
 async function logIn(args) {
   const {
     sender_id,
-    room_name,
+    roomName,
     user_name,
     key_phrase
   } = args
@@ -380,7 +380,7 @@ async function logIn(args) {
     user_name
   }
 
-  // Get the _id of the (new) user with the given name. Initial
+  // Get the _id of the user with the given name. Initial
   // login can have an empty key_phrase.
   const user_id = await Room.getRegistered(args)
 

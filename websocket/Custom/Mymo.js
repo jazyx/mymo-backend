@@ -46,23 +46,28 @@ treatMessageListener(
 
 // ROOM MEMBERSHIP & ONLINE STATUS // ROOM & ONLINE STATUS //
 
-async function getRoomObject(room_name) {
-  let roomObject = rooms.get(room_name)
+async function getRoomObject(roomName) {
+  let roomObject = rooms.get(roomName)
 
   if (!roomObject) {
-    const members = await Room.getRoomMembers(room_name)
-    // [ { _id,
-    //     name,
-    //     key_phrase,
-    //     role,
-    //   + ws_id
-    //   }, ...
-    // ]
+    roomObject = await Room.getRoomObject(roomName)
+    // { members: [
+    //    { _id,
+    //      name,
+    //      key_phrase,
+    //      role
+    //    }, ...
+    //  ],
+    //  activities: [
+    //    { _id,
+    //      name,
+    //      path,
+    //      route,
+    //      children
+    //    }
+    //  ]
 
-    roomObject = {
-      members
-    }
-    rooms.set(room_name, roomObject)
+    rooms.set(roomName, roomObject)
   }
 
   return roomObject
@@ -98,7 +103,7 @@ function getMembersWithStatus(members) {
 /**
  *
  * @param {sender_id} will be the uuid created on connection
- * @param {room_name} should be the name of a Room record
+ * @param {roomName} should be the name of a Room record
  *
  * This script does not yet know the identity of the sender. It
  * should be one of the members of the given Room, but the user
@@ -108,10 +113,10 @@ function getMembersWithStatus(members) {
  *
  * @returns
  */
-async function joinRoom({ sender_id, room_name }) {
-  const roomObject = await getRoomObject(room_name)
+async function joinRoom({ sender_id, roomName }) {
+  const roomObject = await getRoomObject(roomName)
 
-  updateGroups(sender_id, { "add": room_name })
+  updateGroups(sender_id, { "add": roomName })
 
   // Remove key_phrase from message data
   const members = getMembersWithStatus(roomObject.members)
@@ -132,7 +137,7 @@ async function logIn({
   error,      // 0 or -1
   // user_id, // string or undefined if unsuccessful
   sender_id,  // socket uuid
-  room_name,
+  roomName,
   user_name,
   // key_phrase
 }) {
@@ -151,7 +156,7 @@ async function logIn({
 
   // If we get here, `user_name` logged in successfully. Send this
   // user everyone's online status, and their own data...
-  const { members } = await getRoomObject(room_name)
+  const { members } = await getRoomObject(roomName)
   message.members = getMembersWithStatus(members)
   message.user = message.members.find( member => (
     member.name === user_name
@@ -161,7 +166,7 @@ async function logIn({
 
   // ...and tell all other online users about the new login, even
   // if they are not yet logged in
-  message.recipients = getGroupSockets(room_name)
+  message.recipients = getGroupSockets(roomName)
 
   // Don't send the second message to the logged-in user
   const index = message.recipients.findIndex( recipient => (
@@ -182,8 +187,8 @@ async function logIn({
 }
 
 
-async function setCohost({ room_name, cohost_id }) {
-  const roomObject = await getRoomObject(room_name)
+async function setCohost({ roomName, cohost_id }) {
+  const roomObject = await getRoomObject(roomName)
   let { members } = roomObject // alter the original members
 
   let cohost = members.find(({ role }) => (
@@ -206,7 +211,7 @@ async function setCohost({ room_name, cohost_id }) {
     cohost.role = "cohost"
   }
 
-  const recipients = getGroupSockets(room_name)
+  const recipients = getGroupSockets(roomName)
   members = getMembersWithStatus(members)
 
   const message = {
@@ -221,8 +226,8 @@ async function setCohost({ room_name, cohost_id }) {
 
 
 
-function leaveRoom({ sender_id, room_name }) {
-  updateGroups(sender_id, { "delete": room_name })
+function leaveRoom({ sender_id, roomName }) {
+  updateGroups(sender_id, { "delete": roomName })
 }
 
 

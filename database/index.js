@@ -15,6 +15,7 @@ const mongoose = require('mongoose')
 const {
   User,
   Room,
+  Activity,
   Message
 } = require("./models")
 
@@ -25,7 +26,7 @@ mongoose
   .connect(DB, { dbName })
   .then(() => {
     console.log(`Connected to ${bd}`)
-    seed(User, Room)
+    seed(User, Room, Activity)
   })
   .catch( error => {
     console.log("DB connection ERROR:",
@@ -38,6 +39,7 @@ const db = {
   mongoose,
   User,
   Room,
+  Activity,
   Message
 }
 

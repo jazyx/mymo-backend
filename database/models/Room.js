@@ -16,17 +16,26 @@ const schema = Schema({
     ref: 'User',
     required
   }],
+  activities: [{
+    type: Schema.Types.ObjectId,
+    ref: 'Activity',
+    required
+  }]
 },
 
 { statics: {
-    async createIfNotExistsAndAddMembers(name, users) {
+    async createIfNotExistsAndPopulate(name, users, activities) {
       const userIds = users.map( user => user._id )
+      const activityIds = activities.map(({ _id }) => _id)
 
       const RoomRecord = await this.findOneAndUpdate(
         { name },
         {
           $setOnInsert: { name },
-          $addToSet: { members: { $each: userIds }}
+          $addToSet: {
+            members:    { $each: userIds },
+            activities: { $each: activityIds },
+          }
         },
         {
           new: true,
@@ -45,11 +54,11 @@ const schema = Schema({
      *          no match is found
      */
     async getRegistered({
-      room_name, // must be name of a Room record
-      user_name,  // should be name of a User record in Room
-      key_phrase  // should be a string
+      roomName,  // must be name of a Room record
+      user_name, // should be name of a User record in Room
+      key_phrase // should be a string
     }) {
-      const RoomRecord = await this.findOne({name: room_name})
+      const RoomRecord = await this.findOne({name: roomName})
         .populate('members')
         // .lean()
 
@@ -72,21 +81,31 @@ const schema = Schema({
       return member?._id?.toString() 
     },
 
-    async getRoomMembers(name) {
+    async getRoomObject(name) {
       const RoomRecord = await this.findOne({name})
         .populate('members')
+        .populate('activities')
         .lean() // converts Mongoose Proxy(Array) to normal array
 
       if (!RoomRecord) {
         throw new Error('Room not found');
       }
 
-      return RoomRecord.members.map( member => ({
-        _id:        member._id.toString(),
-        name:       member.name,
-        key_phrase: member.key_phrase,
-        role:       member.role
-      }))
+      return {
+        members: RoomRecord.members.map( member => ({
+          _id:        member._id.toString(),
+          name:       member.name,
+          key_phrase: member.key_phrase,
+          role:       member.role
+        })),
+        activities: RoomRecord.activities.map( game => ({
+          _id:      game._id.toString(),
+          name:     game.name,
+          route:    game.route,
+          path:     game.path,
+          children: game.children
+        })),
+      }
     }
   }
 })

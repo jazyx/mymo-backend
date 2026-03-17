@@ -1,0 +1,32 @@
+[
+  {
+    "name": "Word Game",
+    "route": "/room/:RoomName/word-game",
+    "path": "./modules/RoomWrapper.jsx",
+    "children": [
+      {
+        "label": "game",
+        "path": "./modules/WordGame.jsx"
+      },
+      {
+        "label": "cohost",
+        "path": "./modules/ChooseCoHost.jsx"
+      }
+    ]
+  },
+  {
+    "name": "Picture Game",
+    "route": "/room/:RoomName/picture-game",
+    "path": "./modules/RoomWrapper.jsx",
+    "children": [
+      {
+        "label": "game",
+        "path": "./modules/PictureGame.jsx"
+      },
+      {
+        "label": "cohost",
+        "path": "./modules/ChooseCoHost.jsx"
+      }
+    ]
+  }
+]
