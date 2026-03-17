@@ -9,7 +9,7 @@ const { join } = require('path')
 const SEED = join(__dirname, 'seed.json')
 
 
-async function seed(User, Class) {
+async function seed(User, Room) {
   const count = await User.estimatedDocumentCount()
 
   if (count) {
@@ -78,7 +78,7 @@ async function seed(User, Class) {
       message.failed = failed
     } else {
       message.failed = 0
-      createThursdayClass(User, Class)
+      createThursdayRoom(User, Room)
     }
 
     console.log("message:", JSON.stringify(message, null, "  ")); 
@@ -87,16 +87,16 @@ async function seed(User, Class) {
 
 
 
-async function createThursdayClass(User, Class) {
+async function createThursdayRoom(User, Room) {
   const users = await User.find()
-  const classRecord = await Class.createIfNotExistsAndAddMembers(
+  const RoomRecord = await Room.createIfNotExistsAndAddMembers(
     "Thursday",
     users
   )
 
-  const members = await Class.getClassMembers("Thursday")
+  const members = await Room.getRoomMembers("Thursday")
 
-  console.log("Thursday Class:", JSON.stringify(members, null, 2))
+  console.log("Thursday Room:", JSON.stringify(members, null, 2))
 }
 
 

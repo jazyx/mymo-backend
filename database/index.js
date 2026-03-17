@@ -14,7 +14,6 @@ const bd = DB.replace(/:\/\/.+@/, "://<username>:<password>@")
 const mongoose = require('mongoose')
 const {
   User,
-  Class,
   Room,
   Message
 } = require("./models")
@@ -26,7 +25,7 @@ mongoose
   .connect(DB, { dbName })
   .then(() => {
     console.log(`Connected to ${bd}`)
-    seed(User, Class)
+    seed(User, Room)
   })
   .catch( error => {
     console.log("DB connection ERROR:",
@@ -38,7 +37,6 @@ error)
 const db = {
   mongoose,
   User,
-  Class,
   Room,
   Message
 }

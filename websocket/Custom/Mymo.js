@@ -3,7 +3,7 @@
  */
 
 
-const { User, Class } = require('../../database/models/')
+const { User, Room } = require('../../database/models/')
 
 
 const {
@@ -16,15 +16,15 @@ const {
 } = require('../messageHub.js')
 
 
-const classes = new Map()
+const rooms = new Map()
 
 
 treatMessageListener(
   "add",
   [
     {
-      subject: "MYMO.JOIN_CLASS",
-      callback: joinClass
+      subject: "MYMO.JOIN_ROOM",
+      callback: joinRoom
     },
     { subject: "LOGIN_RESULT", // after treatment by "SYSTEM"
       callback: logIn,
@@ -33,8 +33,8 @@ treatMessageListener(
       callback: setCohost,
     },
     {
-      subject: "MYMO.LEAVE_CLASS",
-      callback: leaveClass
+      subject: "MYMO.LEAVE_ROOM",
+      callback: leaveRoom
     },
     {
       subject: "DISCONNECT",
@@ -44,13 +44,13 @@ treatMessageListener(
 )
 
 
-// CLASS MEMBERSHIP & ONLINE STATUS // CLASS & ONLINE STATUS //
+// ROOM MEMBERSHIP & ONLINE STATUS // ROOM & ONLINE STATUS //
 
-async function getClassObject(class_name) {
-  let classObject = classes.get(class_name)
+async function getRoomObject(room_name) {
+  let roomObject = rooms.get(room_name)
 
-  if (!classObject) {
-    const members = await Class.getClassMembers(class_name)
+  if (!roomObject) {
+    const members = await Room.getRoomMembers(room_name)
     // [ { _id,
     //     name,
     //     key_phrase,
@@ -59,13 +59,13 @@ async function getClassObject(class_name) {
     //   }, ...
     // ]
 
-    classObject = {
+    roomObject = {
       members
     }
-    classes.set(class_name, classObject)
+    rooms.set(room_name, roomObject)
   }
 
-  return classObject
+  return roomObject
 }
 
 
@@ -98,27 +98,27 @@ function getMembersWithStatus(members) {
 /**
  *
  * @param {sender_id} will be the uuid created on connection
- * @param {class_name} should be the name of a Class record
+ * @param {room_name} should be the name of a Room record
  *
  * This script does not yet know the identity of the sender. It
- * should be one of the members of the given Class, but the user
+ * should be one of the members of the given Room, but the user
  * will have to confirm this by sending a LOG_IN message with
  * one of the member names and a key_phrase. LOG_IN is also
  * handled at a SYSTEM level in messageHub.js.
  *
  * @returns
  */
-async function joinClass({ sender_id, class_name }) {
-  const classObject = await getClassObject(class_name)
+async function joinRoom({ sender_id, room_name }) {
+  const roomObject = await getRoomObject(room_name)
 
-  updateGroups(sender_id, { "add": class_name })
+  updateGroups(sender_id, { "add": room_name })
 
   // Remove key_phrase from message data
-  const members = getMembersWithStatus(classObject.members)
+  const members = getMembersWithStatus(roomObject.members)
 
   const message = {
     recipient_id: sender_id,
-    subject: "MYMO.CLASS_MEMBERS",
+    subject: "MYMO.ROOM_MEMBERS",
     sender_id: "MYMO",
     members
   }
@@ -132,7 +132,7 @@ async function logIn({
   error,      // 0 or -1
   // user_id, // string or undefined if unsuccessful
   sender_id,  // socket uuid
-  class_name,
+  room_name,
   user_name,
   // key_phrase
 }) {
@@ -151,7 +151,7 @@ async function logIn({
 
   // If we get here, `user_name` logged in successfully. Send this
   // user everyone's online status, and their own data...
-  const { members } = await getClassObject(class_name)
+  const { members } = await getRoomObject(room_name)
   message.members = getMembersWithStatus(members)
   message.user = message.members.find( member => (
     member.name === user_name
@@ -161,7 +161,7 @@ async function logIn({
 
   // ...and tell all other online users about the new login, even
   // if they are not yet logged in
-  message.recipients = getGroupSockets(class_name)
+  message.recipients = getGroupSockets(room_name)
 
   // Don't send the second message to the logged-in user
   const index = message.recipients.findIndex( recipient => (
@@ -172,7 +172,7 @@ async function logIn({
   }
 
   if (message.recipients.length) {
-    message.subject = "MYMO.CLASS_MEMBERS"
+    message.subject = "MYMO.ROOM_MEMBERS"
     delete message.user // don't give out the logged-in user's data
     delete message.recipient_id // set by previous sendMessage()
     sendMessage(message) // to everyone else online
@@ -182,9 +182,9 @@ async function logIn({
 }
 
 
-async function setCohost({ class_name, cohost_id }) {
-  const classObject = await getClassObject(class_name)
-  let { members } = classObject // alter the original members
+async function setCohost({ room_name, cohost_id }) {
+  const roomObject = await getRoomObject(room_name)
+  let { members } = roomObject // alter the original members
 
   let cohost = members.find(({ role }) => (
     role === "cohost"
@@ -206,11 +206,11 @@ async function setCohost({ class_name, cohost_id }) {
     cohost.role = "cohost"
   }
 
-  const recipients = getGroupSockets(class_name)
+  const recipients = getGroupSockets(room_name)
   members = getMembersWithStatus(members)
 
   const message = {
-    subject: "MYMO.CLASS_MEMBERS",
+    subject: "MYMO.ROOM_MEMBERS",
     recipients,
     members
   }
@@ -221,8 +221,8 @@ async function setCohost({ class_name, cohost_id }) {
 
 
 
-function leaveClass({ sender_id, class_name }) {
-  updateGroups(sender_id, { "delete": class_name })
+function leaveRoom({ sender_id, room_name }) {
+  updateGroups(sender_id, { "delete": room_name })
 }
 
 
@@ -241,19 +241,19 @@ async function disconnectUser({ userData }) {
   entries.forEach(async ([ group, sockets ]) => {
     if (!sockets.length) {
       // All members of this group have now left. Destroy the
-      // classObject to free up memory on the server.
-      classes.delete(group)
+      // roomObject to free up memory on the server.
+      rooms.delete(group)
 
     } else {
       // Tell the remaining members who is still connected and
       // who is still logged in
-      let members = (await getClassObject(group))?.members
+      let members = (await getRoomObject(group))?.members
       if (members) {          // this should always be truthy
         if (members.length) { // and so should this
           members = getMembersWithStatus(members)
 
           const message = {
-            subject: "MYMO.CLASS_MEMBERS",
+            subject: "MYMO.ROOM_MEMBERS",
             sender_id: "MYMO",
             recipients: sockets,
             members

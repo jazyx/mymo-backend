@@ -27,7 +27,7 @@
 const { v4: uuid } = require('uuid')
 
 // Connection to database for LogIn
-const { User, Class } = require('../database/models/')
+const { User, Room } = require('../database/models/')
 
 
 const allUsers = []
@@ -349,7 +349,7 @@ treatMessageListener(
 /**
  * Log the user into the _SYSTEM_ (not to a particular group).
  * This gives the client access to the appropriate User record,
- * so that this will be available when the client joins a class,
+ * so that this will be available when the client joins a room,
  * group, or room.
  *
  * @param {string} sender_id
@@ -368,7 +368,7 @@ treatMessageListener(
 async function logIn(args) {
   const {
     sender_id,
-    class_name,
+    room_name,
     user_name,
     key_phrase
   } = args
@@ -382,9 +382,9 @@ async function logIn(args) {
 
   // Get the _id of the (new) user with the given name. Initial
   // login can have an empty key_phrase.
-  const user_id = await Class.getRegistered(args)
+  const user_id = await Room.getRegistered(args)
 
-  if (!user_id) { // no user w/ given name and key_phrase in class
+  if (!user_id) { // no user w/ given name and key_phrase in room
     console.error("logIn failed:", args)
     message.subject = "LOGIN_FAILED"
 
