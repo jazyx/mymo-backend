@@ -88,7 +88,7 @@ const schema = Schema({
         .lean() // converts Mongoose Proxy(Array) to normal array
 
       if (!RoomRecord) {
-        throw new Error('Room not found');
+        throw new Error(`Room not found: ${name}`);
       }
 
       return {

@@ -50,7 +50,7 @@ async function seed(User, Room, Activity) {
     .allSettled(promises)
     .then(proceed)
 
-  function proceed (result) {
+  async function proceed (result) {
     const saved = result
       .filter( user => (
         user.status === "fulfilled"
@@ -79,13 +79,13 @@ async function seed(User, Room, Activity) {
       message.failed = failed
 
     } else {
-      addActivities(Activity)
+      await addActivities(Activity)
 
       message.failed = 0
       createThursdayRoom(User, Activity, Room)
     }
 
-    console.log("message:", JSON.stringify(message, null, "  ")); 
+    console.log("Users:", JSON.stringify(message, null, "  "));
   }
 }
 
@@ -152,7 +152,7 @@ async function addActivities(Activity) {
       message.saved = 0
     }
 
-    console.log("message:", message)
+    console.log("Activities:", JSON.stringify(message, null, "  "));
   }
 }
 
@@ -166,11 +166,14 @@ async function createThursdayRoom(User, Activity, Room) {
     games
   )
 
-  const {members, activities} = await Room.getRoomData("Thursday")
+  const {
+    members,
+    activities
+  } = await Room.getRoomObject("Thursday")
 
   console.log("Thursday Room:", JSON.stringify(members, null, 2))
   console.log(JSON.stringify(activities, null, '  '));
-  
+
 }
 
 

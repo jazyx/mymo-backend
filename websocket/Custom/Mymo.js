@@ -1,13 +1,14 @@
 /**
  * backend/websocket/Custom/Mymo.js
+ *
+ *
  */
 
 
-const { User, Room } = require('../../database/models/')
+const { Room } = require('../../database/models/')
 
 
 const {
-  allUsers,
   treatMessageListener,
   sendMessage,
   updateGroups,
@@ -33,6 +34,10 @@ treatMessageListener(
       callback: setCohost,
     },
     {
+      subject: "MYMO.SET_ROOM_ACTIVITY",
+      callback: setActivity
+    },
+    {
       subject: "MYMO.LEAVE_ROOM",
       callback: leaveRoom
     },
@@ -52,20 +57,22 @@ async function getRoomObject(roomName) {
   if (!roomObject) {
     roomObject = await Room.getRoomObject(roomName)
     // { members: [
-    //    { _id,
-    //      name,
-    //      key_phrase,
-    //      role
-    //    }, ...
-    //  ],
-    //  activities: [
-    //    { _id,
-    //      name,
-    //      path,
-    //      route,
-    //      children
-    //    }
-    //  ]
+    //     { _id,
+    //       name,
+    //       key_phrase,
+    //       role
+    //     }, ...
+    //   ],
+    //   activities: [
+    //     { _id,
+    //       name,
+    //       path,
+    //       route,
+    //       children
+    //     }
+    //   ],
+    // + activity: { name, route, path, children }
+    // }
 
     rooms.set(roomName, roomObject)
   }
@@ -75,7 +82,7 @@ async function getRoomObject(roomName) {
 
 
 /**
- * 
+ *
  * @param {array} members with format [{
  *                   _id: <string from Object_Id>
  *                   name: <string>,
@@ -115,17 +122,21 @@ function getMembersWithStatus(members) {
  */
 async function joinRoom({ sender_id, roomName }) {
   const roomObject = await getRoomObject(roomName)
+  // May include activity if it was set earlier
 
   updateGroups(sender_id, { "add": roomName })
 
   // Remove key_phrase from message data
   const members = getMembersWithStatus(roomObject.members)
+  const { activities, activity } = roomObject
 
   const message = {
     recipient_id: sender_id,
     subject: "MYMO.ROOM_MEMBERS",
     sender_id: "MYMO",
-    members
+    members,
+    activities,
+    activity // may be undefined
   }
   sendMessage(message)
 
@@ -219,6 +230,31 @@ async function setCohost({ roomName, cohost_id }) {
     recipients,
     members
   }
+  sendMessage(message)
+
+  // returns a promise
+}
+
+
+async function setActivity(message) {
+  // {
+  //   subject: "MYMO.SET_ROOM_ACTIVITY",
+  //   recipient_id: "MYMO",
+  //   sender_id: <teacher or cohost _id>,
+  //   roomName,
+  //   activity
+  // }
+  const { roomName, activity } = message
+
+  // Latecomers have yet to be informed. Store for later.
+  const roomObject = await getRoomObject(roomName)
+  roomObject.activity = activity
+
+  // Now broadcast incoming message to all users connected to Room
+  // (= those who called "MYMO.JOIN_ROOM" earlier)
+  delete message.recipient_id
+  message.sender_id = "MYMO"
+  message.recipients = getGroupSockets(roomName)
   sendMessage(message)
 
   // returns a promise
