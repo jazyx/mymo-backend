@@ -38,6 +38,10 @@ treatMessageListener(
       callback: setActivity
     },
     {
+      subject: "MYMO.ACTIVITY",
+      callback: treatActivity
+    },
+    {
       subject: "MYMO.LEAVE_ROOM",
       callback: leaveRoom
     },
@@ -56,6 +60,7 @@ async function getRoomObject(roomName) {
 
   if (!roomObject) {
     roomObject = await Room.getRoomObject(roomName)
+    roomObject.loaded = new Map()
     // { members: [
     //     { _id,
     //       name,
@@ -67,17 +72,48 @@ async function getRoomObject(roomName) {
     //     { _id,
     //       name,
     //       path,
-    //       route,
-    //       children
+    //       script,
+    //       words
     //     }
     //   ],
-    // + activity: { name, route, path, children }
+    // + activity: { path, instance, state }
+    // + loaded: map( name: activityObject} )
     // }
 
     rooms.set(roomName, roomObject)
   }
 
   return roomObject
+}
+
+
+function adoptActivity(props) {
+  const {roomObject, path, name, script, words, chooser} = props
+  let activity = roomObject.loaded.get(name)
+
+  if (!activity) {
+    const players = roomObject.members.map(({ name }) => name )
+    const options = { players, words, chooser }
+    const instance = require(script)(options)
+    if (instance) {
+      instance.newRound()
+    } else {
+      console.warn(`Script ${script} not found?` )
+    }
+
+    activity = {
+      path,
+      instance
+    }
+
+    // Remember this activity object for later
+    roomObject.loaded.set(name, activity)
+  }
+
+  // Ensure latecomers are included in the activity
+  roomObject.activity = activity
+
+  return activity
 }
 
 
@@ -136,7 +172,11 @@ async function joinRoom({ sender_id, roomName }) {
     sender_id: "MYMO",
     members,
     activities,
-    activity // may be undefined
+    activity: { // may be undefined
+      path: activity?.path,
+      state: activity?.instance.getState()
+    }
+
   }
   sendMessage(message)
 
@@ -236,7 +276,7 @@ async function setCohost({ roomName, cohost_id }) {
 }
 
 
-async function setActivity(message) {
+async function setActivity({ roomName, activity }) {
   // {
   //   subject: "MYMO.SET_ROOM_ACTIVITY",
   //   recipient_id: "MYMO",
@@ -244,20 +284,66 @@ async function setActivity(message) {
   //   roomName,
   //   activity
   // }
-  const { roomName, activity } = message
+  const { path } = activity // name, script, words
 
   // Latecomers have yet to be informed. Store for later.
   const roomObject = await getRoomObject(roomName)
-  roomObject.activity = activity
+  activity = adoptActivity({roomObject, ...activity })
+  // { path, instance }
 
   // Now broadcast incoming message to all users connected to Room
-  // (= those who called "MYMO.JOIN_ROOM" earlier)
-  delete message.recipient_id
-  message.sender_id = "MYMO"
-  message.recipients = getGroupSockets(roomName)
+  // (= those who called "MYMO.JOIN_ROOM" earlier). Don't send
+  // activity.instance.
+  const state = activity.instance.getState()
+
+  const message = {
+    subject: "MYMO.SET_ROOM_ACTIVITY",
+    sender_id: "MYMO",
+    recipients: getGroupSockets(roomName),
+    activity: {
+      path,
+      state
+    }
+  }
   sendMessage(message)
 
   // returns a promise
+}
+
+
+async function treatActivity({ roomName, type, payload }) {
+  const roomObject = await getRoomObject(roomName)
+  const activity = roomObject?.activity || {}
+
+  const { path, instance } = activity
+
+  if (!instance) {
+    return console.warn(`Room ${roomName} has no current activity`)
+  }
+
+  let state
+  switch (type) {
+    case "CHECK_ANSWER":
+      state = instance.checkAnswer(payload)
+    break
+
+    case "NEW_ROUND":
+      state = instance.newRound(payload)
+    break
+  }
+
+  const recipients = getGroupSockets(roomName)
+
+  const message = {
+    subject: "MYMO.ACTIVITY",
+    sender_id: "MYMO",
+    recipients,
+    activity: {
+      path,
+      state
+    }
+  }
+  sendMessage(message)
 }
 
 

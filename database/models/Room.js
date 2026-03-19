@@ -99,11 +99,12 @@ const schema = Schema({
           role:       member.role
         })),
         activities: RoomRecord.activities.map( game => ({
-          _id:      game._id.toString(),
-          name:     game.name,
-          route:    game.route,
-          path:     game.path,
-          children: game.children
+          _id:     game._id.toString(),
+          name:    game.name,
+          path:    game.path,
+          script:  game.script,
+          words:   game.words,
+          chooser: game.chooser
         })),
       }
     }

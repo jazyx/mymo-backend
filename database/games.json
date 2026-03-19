@@ -1,24 +1,29 @@
 [
   {
-    "name": "Word Game",
-    "route": "/room/:RoomName/word-game",
-    "path": "./modules/ActivityWrapper.jsx",
-    "children": [
-      {
-        "label": "game",
-        "path": "./modules/WordGame.jsx"
-      }
-    ]
+    "name":    "Word_Game",
+    "path":    "./modules/WordGame.jsx",
+    "script":  "./mymo/GameCore.js",
+    "words":   "./WordList.json",
+    "chooser": "standard"
   },
   {
-    "name": "Picture Game",
-    "route": "/room/:RoomName/picture-game",
-    "path": "./modules/ActivityWrapper.jsx",
-    "children": [
-      {
-        "label": "game",
-        "path": "./modules/PictureGame.jsx"
-      }
-    ]
+    "name":    "Picture_Game",
+    "path":    "./modules/PictureGame.jsx",
+    "script":  "./mymo/GameCore.js",
+    "words":   "./WordList.json"
+  },
+  {
+    "name":    "Odd_One_Out",
+    "path":    "./modules/OddOneOut.jsx",
+    "script":  "./mymo/GameCore.js",
+    "words":   "./Categorized.json",
+    "chooser": "oddOneOut"
+  },
+  {
+    "name":    "Categories",
+    "path":    "./modules/Categories.jsx",
+    "script":  "./mymo/GameCore.js",
+    "words":   "./Categorized.json",
+    "chooser": "categorize"
   }
 ]

@@ -105,6 +105,15 @@ const treatMessageListener = (action, listener) => {
         return errors
       }
 
+      // const replacer = (key, value) => {
+      //   if (value instanceof Set) {
+      //     value = `Set(${value.size})`
+      //   }
+      //   return value
+      // }
+      // console.log("messageListeners", JSON.stringify(messageListeners, replacer, '  '));
+      
+
       return 0 // no error: all listeners were successfully treated
     }
 
@@ -122,9 +131,9 @@ const treatMessageListener = (action, listener) => {
         keys.forEach( key => {
           const value = listener[key]
           if (value) {
-            const listenerMap = messageListeners[key]
-            const listeners = listenerMap[value]
-                            || (listenerMap[value] = new Set())
+            const listenerSet = messageListeners[key]
+            const listeners = listenerSet[value]
+                            || (listenerSet[value] = new Set())
             listeners[action](callback)
 
             treated += 1

@@ -1,0 +1,82 @@
+{
+  "colour": [
+    "red",
+    "yellow",
+    "green",
+    "blue",
+    "purple",
+    "brown",
+    "black",
+    "white"
+  ],
+  "animal": [
+    "cat",
+    "cow",
+    "dog",
+    "fox",
+    "pig",
+    "rat",
+    "horse",
+    "sheep"
+   ],
+  "vehicle": [
+    "taxi",
+    "car",
+    "bicycle",
+    "bus",
+    "truck",
+    "van",
+    "coach",
+    "motorcycle"
+  ],
+  "clothing": [
+    "hat",
+    "coat",
+    "shoe",
+    "shirt",
+    "jacket",
+    "dress",
+    "sock",
+    "glove"
+  ],
+  "room": [
+    "kitchen",
+    "living room",
+    "bedroom",
+    "bathroom",
+    "hall",
+    "dining room",
+    "playroom",
+    "study"
+  ],
+  "sport": [
+    "football",
+    "basketball",
+    "volleyball",
+    "tennis",
+    "squash",
+    "golf",
+    "rugby",
+    "athletics"
+  ],
+  "hobby": [
+    "reading",
+    "cookery",
+    "painting",
+    "woodwork",
+    "chess",
+    "photography",
+    "music",
+    "sewing"
+  ],
+  "weather": [
+    "sunny",
+    "cloudy",
+    "rainy",
+    "snowy",
+    "windy",
+    "foggy",
+    "frosty",
+    "stormy"
+  ]
+}

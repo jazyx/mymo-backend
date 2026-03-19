@@ -15,28 +15,29 @@ const required = true
 //   }
 // ]
 
-const RELATIVE_JSX_PATH_REGEX = /^\.\/(?:[\w-]+\/)*[\w-]+\.jsx$/
-const ROUTE_REGEX = /^\/(?:[\w:-]+\/)*[\w-]+$/
+const RELATIVE_JSX_PATH_REGEX = /^\.\/(?:[\w-]+\/)*[\w-]+\.jsx$/i
+const RELATIVE_JS_PATH_REGEX = /^\.\/(?:[\w-]+\/)*[\w-]+\.js$/i
+const RELATIVE_JSON_PATH_REGEX = /^\.\/(?:[\w-]+\/)*[\w-]+\.json$/i
 
 function isValidJSXPath(path) {
   return RELATIVE_JSX_PATH_REGEX.test(path)
 }
 
-function isValidRoute(route) {
-  return ROUTE_REGEX.test(route)
+function isValidScript(script) {
+  return RELATIVE_JS_PATH_REGEX.test(script)
+}
+
+function isValidJSON(json) {
+  return RELATIVE_JSON_PATH_REGEX.test(json)
 }
 
 
-const ChildSchema = Schema({
-  label: { type: String, required: true },
-  path:  { type: String, required: true }
-}, { _id: false })
-
 const schema = Schema({
-  name:     { type: String, required, trim: true },
-  route:    { type: String, required },
-  path:     { type: String, required },
-  children: { type: [ChildSchema], default: [] }
+  name:    { type: String, required, trim: true },
+  path:    { type: String, required },
+  script:  { type: String, required },
+  words:   { type: String, required },
+  chooser: { type: String }
 },
 
 { statics: {
@@ -46,18 +47,14 @@ const schema = Schema({
         throw new Error(`Invalid path: "${data.path}". Must be a relative .jsx file path (e.g. ./modules/File.jsx)`)
       }
 
-      // Validate route
-      if (!isValidRoute(data.route)) {
-        throw new Error(`Invalid route: "${data.route}". Must be a relative route (e.g. /room/:RoomName/activity)`)
+      // Validate script
+      if (!isValidScript(data.script)) {
+        throw new Error(`Invalid route: "${data.script}". Must be a relative .jsx file path (e.g. ./modules/File.js)`)
       }
 
-      // Validate children paths
-      if (Array.isArray(data.children)) {
-        for (const child of data.children) {
-          if (!isValidJSXPath(child.path)) {
-            throw new Error(`Invalid child path: "${child.path}". Must be a relative .jsx file path`)
-          }
-        }
+      // Validate JSON
+      if (!isValidJSON(data.words)) {
+        throw new Error(`Invalid route: "${data.words}". Must be a relative .json file path (e.g. ./modules/File.json)`)
       }
 
       // Create and save
