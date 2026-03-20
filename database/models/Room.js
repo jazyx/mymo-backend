@@ -11,6 +11,11 @@ const required = true
 
 const schema = Schema({
   name:    { type: String, required, trim: true },
+  teacher: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required
+  },
   members: [{
     type: Schema.Types.ObjectId,
     ref: 'User',
@@ -24,7 +29,12 @@ const schema = Schema({
 },
 
 { statics: {
-    async createIfNotExistsAndPopulate(name, users, activities) {
+    async createIfNotExistsAndPopulate(
+      name,
+      teacher,
+      users,
+      activities
+    ) {
       const userIds = users.map( user => user._id )
       const activityIds = activities.map(({ _id }) => _id)
 
@@ -33,6 +43,7 @@ const schema = Schema({
         {
           $setOnInsert: { name },
           $addToSet: {
+            teacher:    { _id: teacher._id },
             members:    { $each: userIds },
             activities: { $each: activityIds },
           }
@@ -44,11 +55,11 @@ const schema = Schema({
       )
 
       return RoomRecord
-    }, 
+    },
 
     /**
-     * 
-     * @param {object} see below 
+     *
+     * @param {object} see below
      * @returns the _id of the User with the given name (and
      *          key_phrase) in the given Room, or undefined if
      *          no match is found
@@ -78,11 +89,12 @@ const schema = Schema({
       // member will be undefined if user_name and key_phrase
       // don't match anyone in this Room.
 
-      return member?._id?.toString() 
+      return member?._id?.toString()
     },
 
     async getRoomObject(name) {
       const RoomRecord = await this.findOne({name})
+        .populate('teacher')
         .populate('members')
         .populate('activities')
         .lean() // converts Mongoose Proxy(Array) to normal array
@@ -91,7 +103,15 @@ const schema = Schema({
         throw new Error(`Room not found: ${name}`);
       }
 
+      const teacher = RoomRecord.teacher
+
       return {
+        teacher: {
+          _id:        teacher._id.toString(),
+          name:       teacher.name,
+          key_phrase: teacher.key_phrase,
+          role:       teacher.role
+        },
         members: RoomRecord.members.map( member => ({
           _id:        member._id.toString(),
           name:       member.name,
@@ -107,6 +127,11 @@ const schema = Schema({
           chooser: game.chooser
         })),
       }
+    },
+
+    async getTeacherRooms(teacher_id) {
+      return await this.find({teacher: teacher_id}, { name: 1 })
+        .lean()
     }
   }
 })

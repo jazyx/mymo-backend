@@ -46,7 +46,7 @@ const checkPass = (req, res, next) => {
 
   if (!pass) {
     if (is_dev) {
-      console.log(`🤚DEV: PASS ${req.path} REQUEST FOR ${referer}`)
+      console.log(`🤚 DEV: PASS ${req.path} REQUEST FOR ${referer}`)
 
     } else {
       // Ignore API request: serve home page + cookie instead

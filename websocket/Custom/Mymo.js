@@ -347,7 +347,6 @@ async function treatActivity({ roomName, type, payload }) {
 }
 
 
-
 function leaveRoom({ sender_id, roomName }) {
   updateGroups(sender_id, { "delete": roomName })
 }

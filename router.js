@@ -8,7 +8,9 @@ const { checkPass } = require('./middleware')
 const {
   ping,
   getRecords,
-  addRecord
+  addRecord,
+  getTeachers,
+  login
 } = require('./controllers')
 
 
@@ -20,6 +22,8 @@ router.use(checkPass)
 router.get("/ping", ping)
 router.get("/get_records", getRecords)
 router.post("/add_record", addRecord)
+router.get("/getTeachers", getTeachers)
+router.post("/login", login)
 
 
 module.exports = router

@@ -1,11 +1,11 @@
 [
   {
     "name": "James",
-    "role": "teacher"
+    "role": "student"
   },
   {
     "name": "Алиса",
-    "role": "student"
+    "role": "teacher"
   },
   {
     "name": "Влад",

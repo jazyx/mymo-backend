@@ -158,10 +158,12 @@ async function addActivities(Activity) {
 
 
 async function createThursdayRoom(User, Activity, Room) {
+  const teacher = await User.findOne({ role: "teacher" })
   const users = await User.find()
   const games = await Activity.find()
   const RoomRecord = await Room.createIfNotExistsAndPopulate(
     "Thursday",
+    teacher,
     users,
     games
   )
@@ -173,6 +175,8 @@ async function createThursdayRoom(User, Activity, Room) {
 
   console.log("Thursday Room:", JSON.stringify(members, null, 2))
   console.log(JSON.stringify(activities, null, '  '));
+  console.log("teacher", JSON.stringify(teacher, null, '  '));
+
 
 }
 
