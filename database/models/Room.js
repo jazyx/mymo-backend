@@ -3,7 +3,7 @@
 */
 
 
-const { Schema, model } = require('mongoose')
+const { Schema, model, Types } = require('mongoose')
 
 
 const required = true
@@ -23,8 +23,7 @@ const schema = Schema({
   }],
   activities: [{
     type: Schema.Types.ObjectId,
-    ref: 'Activity',
-    required
+    ref: 'Activity'
   }]
 },
 
@@ -33,7 +32,7 @@ const schema = Schema({
       name,
       teacher,
       users,
-      activities
+      activities = []
     ) {
       const userIds = users.map( user => user._id )
       const activityIds = activities.map(({ _id }) => _id)
@@ -100,7 +99,9 @@ const schema = Schema({
         .lean() // converts Mongoose Proxy(Array) to normal array
 
       if (!RoomRecord) {
-        throw new Error(`Room not found: ${name}`);
+        const error = `ERROR in getRoomQbject: Room not found - ${name}`
+        console.warn(error)
+        return { error }
       }
 
       const teacher = RoomRecord.teacher
@@ -130,8 +131,28 @@ const schema = Schema({
     },
 
     async getTeacherRooms(teacher_id) {
-      return await this.find({teacher: teacher_id}, { name: 1 })
+      return await this
+        .find({teacher: teacher_id}, { name: 1 })
         .lean()
+    },
+
+    async addActivities(_id, activity_ids) {
+      if (!Array.isArray(activity_ids)) {
+        activity_ids = [activity_ids]
+      }
+
+      activity_ids = activity_ids.map( _id => {
+        if (typeof _id === "string") {
+          _id = new Types.ObjectId(_id)
+        }
+
+        return _id
+      })
+
+      return await this.findByIdAndUpdate(
+        { _id },
+        { $addToSet: { activities: { $each: activity_ids }}}
+      ).lean()
     }
   }
 })

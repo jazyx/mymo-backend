@@ -26,7 +26,7 @@
  *  addImage()      // { creator_id, filepath [, tags] }
  *  addTags()       // { "laNG": [ "tag", ...], ... }
  *  findByTags()    // "tag" | ["tag"] | { tags: ["tag"] }
- *                  // { tags: ["tag"], language: ["laNG"] }
+ *                  // { tags: ["tag"], language: ["la-NG"] }
  *  findCreatedBy() // "creator_id" | { creator_id, since }
  * 
  * Tests
@@ -72,10 +72,8 @@ const {
   validateSquare,
   validateDescription
  } = require('./Validators')
-const { cwd } = require('process')
+const { LANG_REGEX, getObjectId } = require('./helpers')
 const required = true
-const ID_REGEX = /^[a-f0-9]{24}$/i
-const LANG_REGEX = /^[a-z]{2}(?:-[A-Z]{2})?$/ // "la" || "la-NG"
 
 // const tags = {
 //   "en": [ "box", "carton", ... ],
@@ -85,6 +83,7 @@ const LANG_REGEX = /^[a-z]{2}(?:-[A-Z]{2})?$/ // "la" || "la-NG"
 
 const schema = new Schema({
   creator_id:  { type: Types.ObjectId, ref: 'User', required },
+  batch:       { type: String, required }, // uuid of upload
   filepath:    { type: String, required },
   width:       { type: Number, required },
   height:      { type: Number, required },
@@ -102,7 +101,7 @@ const schema = new Schema({
   },
   description: {
     type: Map,
-    of: String, // timestamp
+    of: String,
     validate: {
       validator: validateDescription,
       message: props => `Description must be an object/map with keys like 'la-NG' and values which are strings\n${JSON.stringify(props.value, null, 2)}`
@@ -146,23 +145,8 @@ const schema = new Schema({
     return pojo 
   },
 
-  _getObjectId: function(_id, callee) {
-    if (typeof _id === "string") {
-      if (ID_REGEX.test(_id)) {
-        _id = new Types.ObjectId(_id)
-
-      } else {
-        error =`ERROR in Image.${callee}: _id must be a 24 char hex string:\n"${_id}" (length: ${_id.length})`
-        console.warn(error)
-        return { error }
-      }
-    }
-
-    return _id
-  },
-
   _getImage: async function(_id, callee) {
-    _id = this._getObjectId(_id, callee)
+    _id = getObjectId(_id, callee)
     if (_id.error) {
       return _id
     }
@@ -221,6 +205,7 @@ const schema = new Schema({
    */
   addImage: async function({
     creator_id,
+    batch,
     filepath,
     tags = {},
     description = {},
@@ -247,7 +232,7 @@ const schema = new Schema({
     //   return console.warn(`Image.addImage: file at ${filepath} already already in database\n${exists}`)
     // }
 
-    creator_id = this._getObjectId(creator_id, "addImage")
+    creator_id = getObjectId(creator_id, "addImage")
     if (creator_id.error) {
       return creator_id
     }
@@ -264,6 +249,7 @@ const schema = new Schema({
 
     const image = new this({
       creator_id,
+      batch,
       filepath,
       width,
       height,
@@ -421,6 +407,9 @@ const schema = new Schema({
    *          those given
    */
   findByTags: async function (args) {
+    // "tag" | ["tag"] | { tags: ["tag"] } |
+    // { tags: [ "array", "of", "tags" ], lang: "la-NG" }
+
     // Allow flexibility in the arguments
     if (typeof args === "string") {
       // Allow a single string tag argument (in any language)
@@ -441,7 +430,10 @@ const schema = new Schema({
       languages = [ languages ]
     }
     tags = tags.filter( tag => typeof tag === "string")
-    languages = languages.filter( lang => typeof lang === "string")
+    languages = languages.filter( lang => (
+         typeof lang === "string"
+      && LANG_REGEX.test(lang)
+    ))
 
     if (!Array.isArray(tags) || tags.length === 0) {
       const error = `ERROR in findByTags: tags must be a non-empty array\n${args}`

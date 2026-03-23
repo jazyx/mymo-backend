@@ -6,6 +6,7 @@
 const User = require("./User.js")
 const Room = require("./Room.js")
 const Image = require("./Image.js")
+const Word = require("./Word.js")
 const Activity = require("./Activity.js")
 const Message = require("./Message.js")
 
@@ -22,13 +23,18 @@ module.exports = {
   User,
   Room,
   Image,
+  Word,
   Activity,
   Message
 }
 
 
-// TEST //
+// TESTS //
 // setTimeout(() => 
-//   require('./imageTest.js'),
+//   require('../tests/imageTest.js'),
 //   1000
 // )
+setTimeout(() => 
+  require('../tests/wordTest.js'),
+  500
+)

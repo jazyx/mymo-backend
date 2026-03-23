@@ -1,6 +1,6 @@
 // imageTest.js
 
-const { Image } = require('./')
+const { Image } = require('../models')
 
 
 Image.addImage({
