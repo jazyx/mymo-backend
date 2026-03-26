@@ -10,7 +10,9 @@ const {
   getRecords,
   addRecord,
   getTeachers,
-  login
+  getTeacherRooms,
+  login,
+  updateUser
 } = require('./controllers')
 
 
@@ -23,7 +25,9 @@ router.get("/ping", ping)
 router.get("/get_records", getRecords)
 router.post("/add_record", addRecord)
 router.get("/getTeachers", getTeachers)
+router.post("/getTeacherRooms", getTeacherRooms)
 router.post("/login", login)
+router.post("/updateUser", updateUser)
 
 
 module.exports = router

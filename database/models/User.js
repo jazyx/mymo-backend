@@ -3,6 +3,7 @@
 */
 
 const { Schema, Types, model } = require('mongoose')
+const { getObjectId, convertToPOJO } = require('./helpers')
 
 
 const schema = Schema({
@@ -95,6 +96,28 @@ const schema = Schema({
         _id: teacher._id,
         name: teacher.name
       }))
+    },
+
+    async isTeacher(_id) {
+      _id = getObjectId(_id)
+      if (_id.error) {
+        return _id
+      }
+
+      const user = await this.findById(
+        _id,
+        { role: 1, _id: 0 }
+      ).lean()
+
+      return user.role === "teacher"
+    },
+
+    async updateUser({ _id, name, key_phrase }) {
+      return await this.findByIdAndUpdate(
+        _id,
+        { name, key_phrase },
+        { new: true }
+      ).lean()
     }
   }
 })

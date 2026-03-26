@@ -4,7 +4,7 @@
 
 
 const { Schema, model, Types } = require('mongoose')
-
+const User = require('./User')
 
 const required = true
 
@@ -130,10 +130,31 @@ const schema = Schema({
       }
     },
 
-    async getTeacherRooms(teacher_id) {
-      return await this
-        .find({teacher: teacher_id}, { name: 1 })
+    async getTeacherRooms({teacher_id}) {
+      let rooms = await this
+        .find({teacher: teacher_id})
+        .populate("members")
         .lean()
+
+      if (!rooms) {
+        const error = `No rooms found for teacher "${teacher_id}"`
+        console.warn(error)
+        return error
+      }
+
+      rooms = rooms.map( room => {
+        delete room.__v     // unimportant
+        delete room.teacher // already known
+        room.members = room.members.filter(
+          ({ role }) => role !== "teacher"
+        ).map( member => {
+          delete member.__v
+          return member
+        })
+        return room
+      })
+
+      return rooms
     },
 
     async addActivities(_id, activity_ids) {

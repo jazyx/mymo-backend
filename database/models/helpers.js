@@ -61,7 +61,7 @@ async function getRecord(_id, Collection, callee) {
 async function pojoOrError(record) {
   try {
     await record.save()
-    return this._convertToPOJO(record)
+    return convertToPOJO(record)
   
   } catch(error) {
     return { error }

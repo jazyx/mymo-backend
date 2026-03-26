@@ -377,9 +377,9 @@ treatMessageListener(
 async function logIn(args) {
   const {
     sender_id,
-    roomName,
+    // roomName,
     user_name,
-    key_phrase
+    // key_phrase
   } = args
   // Hope for the best
   const message = {
@@ -509,6 +509,58 @@ function getUserData( query, key ) {
 }
 
 
+function getUserSockets( query, key ) {
+  const entries = allUsers.filter( data => {
+    let found = false
+    for ( const key in query ) {
+      if (query[key] === data[key]) {
+        found = true
+      }
+    }
+
+    return found
+  })
+  // [{ socket,
+  //    socket_id: uuid,
+  //    groups: Set,
+  //    user_id: <User._id>
+  //    user_name: <string>
+  // }]
+
+  // const sockets = entries.map(({ socket_id }) => socket_id)
+  const socketsAndGroups = entries.reduce(
+    (output, { socket_id, groups }) => {
+      output.sockets.push(socket_id)
+      groups.forEach( group => output.groups.add(group))
+
+      return output
+    },
+    { sockets: [], groups: new Set()}
+  )
+  socketsAndGroups.groups = Array.from(socketsAndGroups.groups)
+
+  return socketsAndGroups // sockets may be []
+}
+
+
+function closeUserSockets(sockets) {
+  sockets.forEach( socketId => {
+    const userData = allUsers.find(({ socket_id }) => (
+      socketId === socket_id
+    ))
+
+    const { socket } = userData
+    socket.close()
+
+    // This will trigger a disconnect message which will be
+    // handled by disconnect() above. userData will be spliced
+    // out of allUsers, and any other scripts listening for
+    // "DISCONNECT" will be called. In Mymo, for example, the
+    // user will be deleted from all groups.
+  })
+}
+
+
 function getGroupSockets(group_name) {
   return allUsers
     .filter(({ groups }) => groups?.has(group_name))
@@ -529,5 +581,7 @@ module.exports = {
   sendMessage,
   updateGroups,
   getUserData,
-  getGroupSockets
+  getGroupSockets,
+  getUserSockets,
+  closeUserSockets
 }

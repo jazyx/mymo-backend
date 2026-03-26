@@ -5,7 +5,7 @@
  */
 
 
-const { Room } = require('../../database/models/')
+const { Room, User } = require('../../database/models/')
 
 
 const {
@@ -13,7 +13,9 @@ const {
   sendMessage,
   updateGroups,
   getUserData,
-  getGroupSockets
+  getGroupSockets,
+  getUserSockets,
+  closeUserSockets
 } = require('../messageHub.js')
 
 
@@ -42,6 +44,10 @@ treatMessageListener(
       callback: treatActivity
     },
     {
+      subject: "MYMO.EJECT_USER",
+      callback: ejectUser
+    },
+    {
       subject: "MYMO.LEAVE_ROOM",
       callback: leaveRoom
     },
@@ -60,27 +66,29 @@ async function getRoomObject(roomName) {
 
   if (!roomObject) {
     roomObject = await Room.getRoomObject(roomName)
-    roomObject.loaded = new Map()
-    // { members: [
-    //     { _id,
-    //       name,
-    //       key_phrase,
-    //       role
-    //     }, ...
-    //   ],
-    //   activities: [
-    //     { _id,
-    //       name,
-    //       path,
-    //       script,
-    //       words
-    //     }
-    //   ],
-    // + activity: { path, instance, state }
-    // + loaded: map( name: activityObject} )
-    // }
+    if (!roomObject.error) {
+      roomObject.loaded = new Map() // for future activities
+      // { members: [
+      //     { _id,
+      //       name,
+      //       key_phrase,
+      //       role
+      //     }, ...
+      //   ],
+      //   activities: [
+      //     { _id,
+      //       name,
+      //       path,
+      //       script,
+      //       words
+      //     }
+      //   ],
+      // + activity: { path, instance, state }
+      // + loaded: map( name: activityObject} )
+      // }
 
-    rooms.set(roomName, roomObject)
+      rooms.set(roomName, roomObject)
+    }
   }
 
   return roomObject
@@ -130,7 +138,7 @@ function adoptActivity(props) {
  *          (not just connected)
  */
 function getMembersWithStatus(members) {
-  return members.map(({ _id, name, role }) => {
+  return members?.map(({ _id, name, role }) => {
     const socket_id = getUserData({ user_id: _id }, "socket_id") // may be undefined
     return {
       _id,
@@ -344,6 +352,85 @@ async function treatActivity({ roomName, type, payload }) {
     }
   }
   sendMessage(message)
+}
+
+
+async function refreshRoom(roomName) {
+  let room = rooms.get(roomName)
+  if (room) {
+    console.log(`Refreshing room ${roomName}`)
+    const loaded = room.loaded
+    rooms.delete(roomName)
+    room = await getRoomObject(roomName)
+    room.loaded = loaded
+  }
+}
+
+
+async function ejectUser({
+  sender_id,
+  teacher_id,
+  user_id,
+  name,
+  reason,
+  refreshRooms
+}) {
+  // This message should only be sent if teacher_id has already
+  // been checked confirmed as a teacher by the client
+  // Double-check.
+  const isTeacher = await User.isTeacher(teacher_id)
+  if (!isTeacher) { return } // don't even respond
+
+  // Find all socket_ids for database User user_id
+  const { sockets, groups } = getUserSockets({ user_id })
+
+  if (refreshRooms) {
+    // A user name has changed: reload the WebSocket rooms before
+    // ejecting the user, so that the new name appears at the
+    // login page.
+    groups.forEach(refreshRoom)
+  }
+
+  // Send message to all these socket_ids that they are about to close... then shut down the connection.
+
+  const count = sockets.length
+  if (count) {
+    // Warn the end-user that they are about to be ejected
+    const message = {
+      subject: "MYMO.EJECTION_NOTICE",
+      sender_id: "MYMO",
+      recipients: sockets,
+      reason
+    }
+    sendMessage(message)
+
+    setTimeout(triggerEjection, 1000)
+
+  } else {
+    const message = {
+      subject: "MYMO.EJECTION_RESULT",
+      sender_id: "MYMO",
+      recipient_id: sender_id,
+      message: `User ${name} is not online`
+    }
+    sendMessage(message)
+  }
+
+  function triggerEjection() {
+    closeUserSockets(sockets)
+
+    const message = {
+      subject: "MYMO.EJECTION_RESULT",
+      sender_id: "MYMO",
+      recipient_id: sender_id,
+      message: `User ${name} has been ejected from ${count} connection${count === 1 ? "" : "s"}.`
+    }
+    sendMessage
+  }
+
+
+
+  // returns a promise
 }
 
 
